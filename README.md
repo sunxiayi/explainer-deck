@@ -11,6 +11,25 @@ Point it at a hard paper / blog post / whitepaper and it produces one self-conta
 - **A built-in select-text-to-ask Q&A layer** — highlight any passage, type a question, and Claude answers it in the same session, with history persisted into the deck folder.
 - Dark theme + yellow accent, sticky TOC, keyboard navigation (← / → / space).
 
+## Demo
+
+A full sample deck is in [`examples/consistent-hashing/`](examples/consistent-hashing/) — built by this skill from an original, copyright-free article (`examples/consistent-hashing/article.txt`).
+
+![Sample slide from the consistent-hashing deck](media/hero.png)
+
+Scroll-through of the whole 22-slide deck:
+
+![Scroll-through of the sample deck](media/demo.gif)
+
+▶ Higher-quality MP4: [`media/demo.mp4`](media/demo.mp4)
+
+Run it locally (with the live select-text-to-ask Q&A layer):
+
+```bash
+cd examples/consistent-hashing/explainer
+python3 qa/qa-server.py        # prints a local URL; open it in a browser
+```
+
 ## Install
 
 Clone into your Claude Code skills directory so the folder is named `explainer-deck`:

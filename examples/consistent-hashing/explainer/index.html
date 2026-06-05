@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consistent Hashing — Explainer Deck</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+    background: #0f0f10;
+    color: #e4e4e6;
+    line-height: 1.7;
+  }
+  .deck { display: flex; min-height: 100vh; }
+
+  /* TOC */
+  .toc {
+    width: 280px;
+    background: #08080a;
+    border-right: 1px solid #222;
+    padding: 24px 18px 60px;
+    overflow-y: auto;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    font-size: 13px;
+  }
+  .toc-title { color: #f4d03f; font-weight: 700; font-size: 14px; margin: 0 0 12px; letter-spacing: 0.5px; }
+  .toc-part {
+    color: #f4d03f;
+    font-weight: 600;
+    font-size: 12px;
+    margin: 22px 0 6px;
+    padding: 4px 8px;
+    background: rgba(244,208,63,0.08);
+    border-left: 2px solid #f4d03f;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+  .toc a {
+    display: block;
+    color: #888;
+    text-decoration: none;
+    padding: 5px 8px 5px 14px;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+    line-height: 1.4;
+  }
+  .toc a:hover { color: #f4d03f; border-left-color: #555; }
+  .toc a.active { color: #f4d03f; border-left-color: #f4d03f; background: rgba(244,208,63,0.06); }
+
+  /* Slides */
+  .slides {
+    flex: 1;
+    max-width: 920px;
+    padding: 48px 64px 200px;
+  }
+  .slide {
+    min-height: 70vh;
+    padding: 36px 0 60px;
+    border-bottom: 1px dashed #2a2a2c;
+    scroll-margin-top: 12px;
+  }
+  .slide:last-child { border-bottom: none; }
+  .slide-num {
+    color: #555;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .slide h2 {
+    color: #f4d03f;
+    font-size: 30px;
+    margin: 0 0 22px;
+    line-height: 1.3;
+    border-left: 4px solid #f4d03f;
+    padding-left: 16px;
+  }
+  .slide h3 {
+    color: #e4e4e6;
+    font-size: 19px;
+    margin: 24px 0 10px;
+  }
+  .slide p, .slide ul, .slide ol { font-size: 17px; }
+  .slide ul, .slide ol { padding-left: 24px; }
+  .slide li { margin: 6px 0; }
+  .slide strong { color: #f4d03f; font-weight: 600; }
+  .slide em { color: #8be3ff; font-style: normal; }
+
+  /* code + diagrams */
+  pre, code {
+    font-family: "JetBrains Mono", "SF Mono", "Cascadia Code", "Source Code Pro", Menlo, monospace;
+  }
+  code {
+    background: #1a1a1c;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 14px;
+    color: #f4d03f;
+  }
+  pre {
+    background: #07070a;
+    border: 1px solid #2a2a2c;
+    border-left: 3px solid #f4d03f;
+    padding: 16px 20px;
+    overflow-x: auto;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: #c8c8cc;
+    border-radius: 4px;
+    margin: 16px 0;
+  }
+  pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+
+  /* boxes */
+  .takeaway {
+    background: linear-gradient(180deg, rgba(244,208,63,0.08), rgba(244,208,63,0.03));
+    border: 1px solid rgba(244,208,63,0.4);
+    padding: 14px 18px 14px 50px;
+    margin: 20px 0 0;
+    border-radius: 6px;
+    position: relative;
+    font-size: 16.5px;
+  }
+  .takeaway::before {
+    content: "▸";
+    color: #f4d03f;
+    font-size: 22px;
+    font-weight: bold;
+    position: absolute;
+    left: 18px;
+    top: 11px;
+  }
+  .takeaway b { color: #f4d03f; }
+  .analogy {
+    background: rgba(139,227,255,0.06);
+    border-left: 3px solid #8be3ff;
+    padding: 12px 18px;
+    margin: 16px 0;
+    border-radius: 0 4px 4px 0;
+    font-size: 16px;
+  }
+  .analogy::before {
+    content: "ANALOGY  ";
+    color: #8be3ff;
+    font-weight: 700;
+    letter-spacing: 1px;
+    font-size: 12px;
+    display: inline-block;
+    padding: 1px 7px;
+    background: rgba(139,227,255,0.15);
+    border-radius: 3px;
+    margin-right: 10px;
+  }
+  .example {
+    background: rgba(150,220,150,0.05);
+    border-left: 3px solid #96dc96;
+    padding: 12px 18px;
+    margin: 16px 0;
+    border-radius: 0 4px 4px 0;
+    font-size: 16px;
+  }
+  .example::before {
+    content: "EXAMPLE  ";
+    color: #96dc96;
+    font-weight: 700;
+    letter-spacing: 1px;
+    font-size: 12px;
+    display: inline-block;
+    padding: 1px 7px;
+    background: rgba(150,220,150,0.15);
+    border-radius: 3px;
+    margin-right: 10px;
+  }
+  .warning {
+    background: rgba(255,140,90,0.06);
+    border-left: 3px solid #ff8c5a;
+    padding: 12px 18px;
+    margin: 16px 0;
+    border-radius: 0 4px 4px 0;
+    font-size: 16px;
+  }
+  .warning::before {
+    content: "NOTE  ";
+    color: #ff8c5a;
+    font-weight: 700;
+    letter-spacing: 1px;
+    font-size: 12px;
+    display: inline-block;
+    padding: 1px 7px;
+    background: rgba(255,140,90,0.15);
+    border-radius: 3px;
+    margin-right: 10px;
+  }
+  .deepdive {
+    background: rgba(180,140,255,0.05);
+    border-left: 3px solid #b48cff;
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 0 4px 4px 0;
+    font-size: 15px;
+  }
+  .deepdive-title {
+    color: #b48cff;
+    font-weight: 700;
+    letter-spacing: 1px;
+    font-size: 12px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .deepdive-title::before { content: "▼ "; }
+  .deepdive ul { margin: 0; padding: 0; list-style: none; }
+  .deepdive li {
+    margin: 6px 0;
+    padding-left: 14px;
+    position: relative;
+    line-height: 1.55;
+  }
+  .deepdive li::before {
+    content: "›";
+    color: #b48cff;
+    position: absolute;
+    left: 0;
+    font-weight: bold;
+  }
+  .deepdive a {
+    color: #c4a4ff;
+    text-decoration: underline;
+    text-decoration-color: rgba(196,164,255,0.4);
+    text-underline-offset: 2px;
+  }
+  .deepdive a:hover {
+    color: #d8c0ff;
+    text-decoration-color: #d8c0ff;
+  }
+  .deepdive .meta {
+    color: #888;
+    font-size: 13px;
+    margin-left: 4px;
+  }
+
+  /* tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 15px;
+  }
+  th, td {
+    border: 1px solid #2a2a2c;
+    padding: 10px 14px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: rgba(244,208,63,0.08); color: #f4d03f; font-weight: 600; }
+  tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
+
+  /* svg style */
+  svg { display: block; max-width: 100%; margin: 16px 0; }
+
+  /* figure / image */
+  .figure {
+    margin: 22px 0;
+    text-align: center;
+  }
+  .figure img {
+    max-width: 100%;
+    max-height: 480px;
+    border-radius: 6px;
+    border: 1px solid #2a2a2c;
+    background: #1a1a1c;
+    display: block;
+    margin: 0 auto;
+  }
+  .figure-caption {
+    color: #888;
+    font-size: 13px;
+    margin-top: 10px;
+    font-style: italic;
+    letter-spacing: 0.2px;
+  }
+  .figure-caption .src {
+    color: #666;
+    font-style: normal;
+  }
+  .figure-row {
+    display: flex;
+    gap: 14px;
+    margin: 22px 0;
+    flex-wrap: wrap;
+  }
+  .figure-row .figure {
+    flex: 1;
+    min-width: 260px;
+    margin: 0;
+  }
+  .figure-row .figure img {
+    max-height: 340px;
+  }
+
+  /* nav controls */
+  .nav-controls {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    gap: 8px;
+    background: rgba(20,20,22,0.92);
+    padding: 8px;
+    border-radius: 999px;
+    border: 1px solid #2a2a2c;
+    backdrop-filter: blur(6px);
+    z-index: 100;
+  }
+  .nav-controls button {
+    background: #1a1a1c;
+    color: #aaa;
+    border: 1px solid #333;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .nav-controls button:hover { background: #f4d03f; color: #000; border-color: #f4d03f; }
+  .progress {
+    color: #888;
+    font-size: 13px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    font-family: monospace;
+  }
+  .progress .cur { color: #f4d03f; }
+
+  /* mobile */
+  @media (max-width: 768px) {
+    .deck { flex-direction: column; }
+    .toc { width: 100%; height: auto; position: relative; max-height: 200px; }
+    .slides { padding: 24px; }
+  }
+</style>
+<link rel="stylesheet" href="qa/qa-widget.css">
+</head>
+<body>
+<div class="deck">
+  <nav class="toc" id="toc">
+    <div class="toc-title">Consistent Hashing</div>
+    <div class="toc-part">Part 1 · Foundations</div>
+    <a href="#s1">01 · What this deck explains</a>
+    <a href="#s2">02 · Hash function: turn any key into a number</a>
+    <a href="#s3">03 · Keyspace + partitioning across N nodes</a>
+    <a href="#s4">04 · Modulo hashing: the obvious scheme</a>
+    <a href="#s5">05 · Cache miss, refetch, thundering herd</a>
+    <a href="#s6">06 · The hash ring — the core mental model</a>
+    <a href="#s7">07 · Load variance — "balanced on average" isn't enough</a>
+    <div class="toc-part">Part 2 · Article walkthrough</div>
+    <a href="#s8">08 · Why modulo hashing breaks on a membership change</a>
+    <a href="#s9">09 · How bad? About N/(N+1) of all keys move</a>
+    <a href="#s10">10 · What we actually want: balanced + monotone</a>
+    <a href="#s11">11 · The ring construction, restated precisely</a>
+    <a href="#s12">12 · Add a node → only one arc moves</a>
+    <a href="#s13">13 · Remove a node → its arc merges into one neighbor</a>
+    <a href="#s14">14 · The payoff: O(1/N) remap instead of N/(N+1)</a>
+    <a href="#s15">15 · One token per node is too lumpy</a>
+    <a href="#s16">16 · Virtual nodes: give each machine many small tokens</a>
+    <a href="#s17">17 · Replication: store each key on R distinct nodes</a>
+    <a href="#s18">18 · The catch: it balances keys, not requests</a>
+    <a href="#s19">19 · Two fixes for hot keys</a>
+    <a href="#s20">20 · Rendezvous (HRW) hashing — same goal, different shape</a>
+    <a href="#s21">21 · The whole argument on one slide</a>
+    <a href="#s22">22 · Recap + where to go next</a>
+  </nav>
+
+  <main class="slides" id="slides">
+
+  <!-- ====== PART 1: FOUNDATION SLIDES ====== -->
+<section class="slide" id="s1">
+  <div class="slide-num">SLIDE 01 · INTRO</div>
+  <h2>What this deck explains</h2>
+  <p>We are reading a short, dense article titled <em>"Consistent Hashing for Distributed Caches."</em> It is written in a terse, paper-like voice and assumes you already know hashing, partitioning, and cache mechanics. This deck unpacks it from scratch for someone who has seen hash tables once and nothing more.</p>
+  <p>The article's one-sentence claim:</p>
+  <div class="takeaway">A distributed cache spreads keys over <strong>N</strong> machines. The obvious scheme (<code>h(k) mod N</code>) falls apart the moment you add or remove a machine — it moves <strong>almost every key</strong>. <strong>Consistent hashing</strong> fixes this: a membership change moves only about <strong>1/N</strong> of the keys.</div>
+  <h3>How to read this deck</h3>
+  <p>Slides 2–7 are a <strong>vocabulary primer</strong> (hash function, keyspace, modulo hashing, cache miss, the hash ring). Slides 8+ walk the article section by section, with the math done out and diagrams. Select any text and ask a question if a step is unclear.</p>
+  <div class="analogy">think of N coat-check counters. Modulo hashing is "ticket number mod N." Open one more counter and suddenly everyone's mod changes — every coat is at the wrong counter. Consistent hashing only makes the people near the new counter move.</div>
+</section>
+
+<section class="slide" id="s2">
+  <div class="slide-num">SLIDE 02 · FOUNDATION</div>
+  <h2>Hash function: turn any key into a number</h2>
+  <p>A <strong>hash function</strong> <code>h</code> takes a key (a string, an id, anything) and returns a number in a large fixed range, e.g. 0 to 2<sup>32</sup>−1. Two properties matter here:</p>
+  <ul>
+    <li><strong>Deterministic</strong> — the same key always hashes to the same number.</li>
+    <li><strong>Uniform</strong> — different keys spread roughly evenly across the range, with no clustering.</li>
+  </ul>
+  <div class="example"><code>h("user:42") = 3_915_028_771</code>, <code>h("user:43") = 88_201_544</code>. Adjacent-looking keys land far apart — that is what "uniform" buys you.</div>
+  <div class="takeaway">A hash function is the tool that converts a meaningful key into a position-like number we can do arithmetic on. Everything below is "where on a number line (or ring) does this key land."</div>
+</section>
+
+<section class="slide" id="s3">
+  <div class="slide-num">SLIDE 03 · FOUNDATION</div>
+  <h2>Keyspace + partitioning across N nodes</h2>
+  <p>The <strong>keyspace</strong> is the set of all possible keys. A <strong>distributed cache</strong> is several machines (<strong>nodes</strong>) that together hold the cached values; no single node holds everything. <strong>Partitioning</strong> (a.k.a. sharding) is the rule that decides which node owns which key.</p>
+  <p>A <strong>placement function</strong> <code>place(k)</code> maps each key to exactly one node. Good partitioning wants two things at once:</p>
+  <table>
+    <thead><tr><th>Goal</th><th>Means</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Balanced</strong></td><td>each node owns ~1/N of the keys (no node overloaded)</td></tr>
+      <tr><td><strong>Stable</strong></td><td>when N changes, as few keys as possible change owner</td></tr>
+    </tbody>
+  </table>
+  <div class="takeaway">The whole article is about a placement function that is balanced <strong>and</strong> stable at the same time. Modulo hashing (next slide) gets the first and badly fails the second.</div>
+</section>
+
+<section class="slide" id="s4">
+  <div class="slide-num">SLIDE 04 · FOUNDATION</div>
+  <h2>Modulo hashing: the obvious scheme</h2>
+  <p>The simplest placement: hash the key, take the remainder by N.</p>
+<pre>
+place(k) = h(k) mod N
+
+N = 4 nodes (0,1,2,3)
+h("user:42") = 3_915_028_771
+3_915_028_771 mod 4 = 3   →  node 3 owns "user:42"
+</pre>
+  <p>Because <code>h</code> is uniform, <code>mod N</code> hands each node about 1/N of the keys. So modulo hashing is <strong>balanced</strong> — and that is why it is the first thing everyone reaches for.</p>
+  <div class="takeaway">Modulo hashing nails balance. Its problem is hidden in the divisor: <code>N</code> is baked into every key's location, so changing N relocates everything (see slide 8).</div>
+</section>
+
+<section class="slide" id="s5">
+  <div class="slide-num">SLIDE 05 · FOUNDATION</div>
+  <h2>Cache miss, refetch, thundering herd</h2>
+  <p>A <strong>cache hit</strong> is when the value is already on the node you asked — fast. A <strong>cache miss</strong> is when it is not: the node must <strong>refetch</strong> from the slow origin (the database) and store it ("warm" the cache).</p>
+  <p>If a key changes owner, the new owner has never seen it → guaranteed miss → refetch. If <em>many</em> keys change owner at once, a flood of refetches hits the origin simultaneously. That flood is a <strong>thundering herd</strong>, and it can knock the database over.</p>
+  <div class="warning">This is why "how many keys move on a membership change" is not a cosmetic metric. Moving 80% of keys = 80% of the cache instantly cold = a herd of refetches against the database at the worst possible moment (you were probably adding a node <em>because</em> you were already busy).</div>
+  <div class="takeaway">Keep this cost in mind: every key that changes owner is one forced miss. Minimizing owner-changes is the entire game.</div>
+</section>
+
+<section class="slide" id="s6">
+  <div class="slide-num">SLIDE 06 · FOUNDATION</div>
+  <h2>The hash ring — the core mental model</h2>
+  <p>Instead of a line of N slots, imagine the hash range bent into a <strong>circle</strong> (the integers mod 2<sup>m</sup>). Both keys and nodes are hashed onto this same ring.</p>
+  <ul>
+    <li>Each node's hash is its <strong>token</strong> — its position on the ring.</li>
+    <li>To place a key: hash it to a point, then <strong>walk clockwise</strong> until you hit the first node token. That node owns the key.</li>
+  </ul>
+  <div class="figure">
+    <img src="img/hash-ring.svg" alt="Hash ring with nodes A B C D and a key walking clockwise to B">
+    <div class="figure-caption">A node owns the arc that ends at its token (the keys between its counter-clockwise neighbor and itself). Key <code>k</code> walks clockwise to the first token, B, so B owns it. <span class="src">Schematic (illustrative)</span></div>
+  </div>
+  <div class="takeaway">"Hash both keys and nodes onto one circle; a key belongs to the next node clockwise." Hold this picture — every later idea (add/remove, vnodes, replication) is a small edit to this ring.</div>
+  <div class="deepdive">
+    <div class="deepdive-title">Want to go deeper · recommended</div>
+    <ul>
+      <li><a href="https://www.toptal.com/big-data/consistent-hashing" target="_blank">Toptal: Consistent Hashing</a><span class="meta"> · Blog</span> — the classic illustrated walk-through of the ring.</li>
+      <li><a href="https://www.youtube.com/watch?v=UF9Iqmg94tk" target="_blank">Hussein Nasser: Consistent Hashing</a><span class="meta"> · YouTube</span> — whiteboard explanation of the ring + vnodes.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="slide" id="s7">
+  <div class="slide-num">SLIDE 07 · FOUNDATION</div>
+  <h2>Load variance — "balanced on average" isn't enough</h2>
+  <p>"Each node owns ~1/N of keys <em>in expectation</em>" is an average. The <strong>variance</strong> is how far real nodes stray from that average. A useful measure is the <strong>coefficient of variation</strong> = standard deviation ÷ mean: smaller means the nodes' loads are tightly bunched around the average.</p>
+  <div class="analogy">throwing N darts blindfolded at a circular dartboard's rim. On average the gaps between darts are equal, but in any one throw some gaps are much bigger than others. The node owning a big gap owns too many keys.</div>
+  <div class="takeaway">A scheme can be balanced in expectation yet lumpy in reality. Slide 15 (virtual nodes) is exactly the fix for this lumpiness.</div>
+</section>
+
+  <!-- ====== PART 2: ARTICLE WALKTHROUGH SLIDES ====== -->
+<section class="slide" id="s8">
+  <div class="slide-num">SLIDE 08 · §1 THE PROBLEM</div>
+  <h2>Why modulo hashing breaks on a membership change</h2>
+  <p>The article's first move: show that modulo hashing, despite being balanced, is catastrophically <strong>unstable</strong>. When N becomes N+1, the divisor changes, so <code>h(k) mod N</code> and <code>h(k) mod (N+1)</code> disagree for almost every key.</p>
+  <div class="figure">
+    <img src="img/modulo-remap.svg" alt="Keys re-colored when N goes from 4 to 5 under modulo hashing">
+    <div class="figure-caption">Same 12 keys, owners by <code>k mod 4</code> (top) vs <code>k mod 5</code> (bottom). The ✗ keys changed owner — 8 of 12 here. As N grows the fraction approaches N/(N+1). <span class="src">Schematic (illustrative)</span></div>
+  </div>
+  <div class="takeaway">Adding one node under modulo hashing is not a small edit — it reshuffles nearly the whole keyspace, and (slide 5) every reshuffled key is a forced cache miss.</div>
+</section>
+
+<section class="slide" id="s9">
+  <div class="slide-num">SLIDE 09 · §1 THE MATH</div>
+  <h2>How bad? About N/(N+1) of all keys move</h2>
+  <p>Let's do the article's claim explicitly. A key keeps its owner only if <code>h(k) mod N == h(k) mod (N+1)</code>. For a uniformly random hash, the fraction of keys where the two remainders coincide is only about <code>1/(N+1)</code>. So the fraction that <strong>moves</strong> is:</p>
+<pre>
+fraction moved ≈ 1 − 1/(N+1) = N/(N+1)
+
+N = 4    →  4/5  = 80% of keys move
+N = 9    →  9/10 = 90%
+N = 99   →  99/100 = 99%
+</pre>
+  <p>The bigger your cluster, the <em>worse</em> it gets — exactly backwards from what you want.</p>
+  <div class="takeaway">Modulo hashing's remap cost is ≈ <strong>N/(N+1)</strong> — practically the entire cache goes cold on any single add or remove. Contrast this with the O(1/N) we are about to get from the ring.</div>
+</section>
+
+<section class="slide" id="s10">
+  <div class="slide-num">SLIDE 10 · §1 THE GOAL</div>
+  <h2>What we actually want: balanced + monotone</h2>
+  <p>The article names the target precisely. We want a placement function that is:</p>
+  <ul>
+    <li><strong>Balanced</strong> — each node still owns ~1/N of keys.</li>
+    <li><strong>Monotone</strong> — adding or removing a node moves <em>only</em> the keys that must move to or from that node, and leaves every other key exactly where it was.</li>
+  </ul>
+  <p><strong>Monotonicity</strong> is the new word. It is the formal version of "don't disturb keys that have nothing to do with the change."</p>
+  <div class="takeaway">"Move only what must move." That single property is the difference between an 80%-cold cache and a ~1/N-cold cache. The ring (next) delivers it.</div>
+</section>
+
+<section class="slide" id="s11">
+  <div class="slide-num">SLIDE 11 · §2 THE RING</div>
+  <h2>The ring construction, restated precisely</h2>
+  <p>From slide 6: hash nodes and keys onto the same circle; a key's owner is the first node clockwise. Said in arc terms: <strong>each node owns the arc that ends at its token</strong> — the keys between its counter-clockwise neighbor's token and its own.</p>
+<pre>
+ring (clockwise):  … ─ nodeA ─[arc owned by B]─ nodeB ─[owned by C]─ nodeC ─ …
+
+key k lands in the A→B arc  ⇒  owner = B
+</pre>
+  <p>That is the whole data structure: a sorted set of tokens. Lookup = "find the next token clockwise from h(k)", an <code>O(log N)</code> search.</p>
+  <div class="takeaway">Ownership is local to an arc. Because an arc is defined only by its two surrounding tokens, changing a far-away part of the ring cannot affect this arc — which is precisely why the ring is monotone (next two slides).</div>
+</section>
+
+<section class="slide" id="s12">
+  <div class="slide-num">SLIDE 12 · §2 MONOTONICITY</div>
+  <h2>Add a node → only one arc moves</h2>
+  <p>Insert a new node X by hashing it to a token on the ring. X lands inside some existing arc — say the arc currently owned by C. X now owns the sub-arc from its counter-clockwise neighbor up to X; the rest still belongs to C.</p>
+  <div class="figure">
+    <img src="img/ring-add-node.svg" alt="Before and after inserting node X: only the A to X keys move from C to X">
+    <div class="figure-caption">Before, C owns the whole A→C arc. After inserting X between them, X takes only the A→X keys from C; everything else on the ring is untouched. <span class="src">Schematic (illustrative)</span></div>
+  </div>
+  <div class="takeaway">A new node steals exactly one arc from one neighbor. Expected keys moved = expected arc length = <strong>O(1/N)</strong>. No other key sees a cache miss.</div>
+</section>
+
+<section class="slide" id="s13">
+  <div class="slide-num">SLIDE 13 · §2 MONOTONICITY</div>
+  <h2>Remove a node → its arc merges into one neighbor</h2>
+  <p>Removing a node deletes its token. The keys it owned have to go somewhere — they fall to the <strong>next node clockwise</strong>, because that is now the first token those keys reach. Every other arc is unchanged.</p>
+  <div class="analogy">close one coat-check counter and only that counter's coats move — to the next counter down the line. Everyone else keeps their counter.</div>
+  <div class="example">Remove C from <code>A — B — C — D</code>: the keys that were on C now land on D (the next clockwise). A's and B's keys never move.</div>
+  <div class="takeaway">Add and remove are mirror images: one arc appears or disappears, and only that arc's keys move. This symmetry is what "monotone" guarantees in both directions.</div>
+</section>
+
+<section class="slide" id="s14">
+  <div class="slide-num">SLIDE 14 · §2 RESULT</div>
+  <h2>The payoff: O(1/N) remap instead of N/(N+1)</h2>
+  <p>Put the two halves together:</p>
+  <table>
+    <thead><tr><th></th><th>Modulo hashing</th><th>Consistent hashing (ring)</th></tr></thead>
+    <tbody>
+      <tr><td>Balanced?</td><td>yes</td><td>yes (on average)</td></tr>
+      <tr><td>Keys moved on ±1 node</td><td><strong>≈ N/(N+1)</strong> (almost all)</td><td><strong>≈ 1/N</strong> (one arc)</td></tr>
+      <tr><td>Lookup cost</td><td>O(1)</td><td>O(log N)</td></tr>
+    </tbody>
+  </table>
+  <p>We traded an O(1) modulo for an O(log N) ring search, and in return a membership change went from "reshuffle everything" to "move one arc."</p>
+  <div class="takeaway">This O(1/N) is the headline result of consistent hashing. The remaining sections (vnodes, replication, hotspots) are refinements that keep this property while fixing its rough edges.</div>
+</section>
+
+<section class="slide" id="s15">
+  <div class="slide-num">SLIDE 15 · §3 VARIANCE</div>
+  <h2>One token per node is too lumpy</h2>
+  <p>Back to slide 7's worry. With one random token per node, the arcs are random lengths. The largest arc among N random tokens is about <code>(log N)/N</code> in expectation — so some unlucky node can own several times the average number of keys.</p>
+<pre>
+4 nodes, one token each — arcs might be:
+   A: 15%   B: 42%   C: 11%   D: 32%
+mean is 25%, but B owns 42% — a hot node by accident
+</pre>
+  <div class="takeaway">The ring is balanced in expectation but lumpy in any single realization. We need to shrink that variance without losing monotonicity — that is exactly what virtual nodes do.</div>
+</section>
+
+<section class="slide" id="s16">
+  <div class="slide-num">SLIDE 16 · §3 VIRTUAL NODES</div>
+  <h2>Virtual nodes: give each machine many small tokens</h2>
+  <p>Instead of one token per physical node, hash each node to <strong>V</strong> tokens — e.g. hash <code>"nodeA#0"</code>, <code>"nodeA#1"</code>, … <code>"nodeA#V−1"</code>. The ring now has <code>N·V</code> tokens, and a physical node owns the <em>union</em> of its V scattered arcs.</p>
+  <p>Averaging V independent arcs shrinks the coefficient of variation by a factor of <code>√V</code>:</p>
+<pre>
+V = 1     → loads swing wildly
+V = 100   → √100 = 10× tighter → within a few % of the mean
+V = 200   → tighter still
+</pre>
+  <h3>Bonus: heterogeneous capacity</h3>
+  <p>A machine with twice the memory? Give it twice as many tokens. Capacity becomes "how many tokens you get."</p>
+  <div class="takeaway">Virtual nodes are the single most important refinement: ~100–200 tokens per node turns the lumpy ring into an evenly loaded one, and let nodes of different sizes coexist — all while staying monotone.</div>
+  <div class="deepdive">
+    <div class="deepdive-title">Want to go deeper</div>
+    <ul>
+      <li><a href="https://www.youtube.com/watch?v=zaRkONvyGr8" target="_blank">System Design: Consistent Hashing &amp; virtual nodes</a><span class="meta"> · YouTube</span> — why V≈150 is a common default.</li>
+      <li><a href="https://docs.aws.amazon.com/whitepapers/latest/best-practices-for-implementing-amazon-elasticache/data-partitioning.html" target="_blank">AWS: data partitioning</a><span class="meta"> · Docs</span> — vnodes in a real cache product.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="slide" id="s17">
+  <div class="slide-num">SLIDE 17 · §4 REPLICATION</div>
+  <h2>Replication: store each key on R distinct nodes</h2>
+  <p>One owner per key means that node failing loses its whole arc. <strong>Replication factor R</strong> stores each key on the next <strong>R distinct physical nodes</strong> found by continuing the clockwise walk past the first owner.</p>
+  <p>The subtlety is "distinct physical": because of virtual nodes, the next few tokens clockwise might all belong to the <em>same</em> machine. So you <strong>walk and skip</strong> — keep going until you have collected R different machines.</p>
+<pre>
+clockwise from k:  tokenB(=nodeB) tokenB2(=nodeB) tokenC(=nodeC) tokenA(=nodeA)
+R = 3 owners  →  B, then skip B's duplicate, then C, then A
+</pre>
+  <div class="takeaway">Replication = "the first R distinct machines clockwise." A read can fall back to a replica if the primary is down, and a membership change still moves only O(1/N) per replica position.</div>
+</section>
+
+<section class="slide" id="s18">
+  <div class="slide-num">SLIDE 18 · §5 HOTSPOTS</div>
+  <h2>The catch: it balances keys, not requests</h2>
+  <p>Everything so far balances <em>how many keys</em> each node owns. But traffic is rarely uniform — a handful of <strong>hot keys</strong> (a viral post, a celebrity profile) can absorb most of the requests. The node owning a hot key is overloaded no matter how evenly keys are spread.</p>
+  <div class="warning">Consistent hashing gives you an even <em>key</em> distribution and says nothing about <em>request</em> distribution. A perfectly balanced ring can still have one molten-hot node.</div>
+  <div class="takeaway">Distinguish two balances: keys-per-node (solved by vnodes) and requests-per-node (not solved yet). The next slide handles the second.</div>
+</section>
+
+<section class="slide" id="s19">
+  <div class="slide-num">SLIDE 19 · §5 BOUNDED LOAD</div>
+  <h2>Two fixes for hot keys</h2>
+  <p>The article composes two mitigations:</p>
+  <ol>
+    <li><strong>Replicate hot keys wider</strong> and let clients pick a replica at random — read load for that key spreads across more machines.</li>
+    <li><strong>Bounded-load assignment</strong> — cap each node at <code>(1 + ε)</code> × the average load. When the clockwise walk reaches a node already at its cap, <strong>skip to the next</strong> one.</li>
+  </ol>
+<pre>
+ε = 0.25  →  no node may exceed 1.25× average load
+walk clockwise … node at cap? → keep walking to the next
+</pre>
+  <div class="takeaway">Bounded load guarantees a hard ceiling on any node's share, at the cost of a little extra movement on insertion. It keeps monotonicity in expectation while capping the worst case — the practical answer to hotspots.</div>
+</section>
+
+<section class="slide" id="s20">
+  <div class="slide-num">SLIDE 20 · §6 ALTERNATIVE</div>
+  <h2>Rendezvous (HRW) hashing — same goal, different shape</h2>
+  <p>The ring is not the only monotone scheme. <strong>Rendezvous hashing</strong> (Highest Random Weight) skips tokens entirely: to place key <code>k</code>, compute a combined hash <code>w(k, node)</code> for every node and pick the node with the highest weight.</p>
+  <table>
+    <thead><tr><th></th><th>Ring (consistent hashing)</th><th>Rendezvous (HRW)</th></tr></thead>
+    <tbody>
+      <tr><td>State</td><td>sorted token set (+ vnodes)</td><td>none — just node ids</td></tr>
+      <tr><td>Lookup</td><td>O(log N) search</td><td>O(N) hashes per key</td></tr>
+      <tr><td>Variance</td><td>needs vnodes to be even</td><td>low without vnodes</td></tr>
+      <tr><td>Replica ranking</td><td>walk-and-skip</td><td>free — just sort the weights</td></tr>
+    </tbody>
+  </table>
+  <p>Both are <strong>monotone</strong>: adding a node only wins the keys where it is now the max; removing one only re-races its own keys.</p>
+  <div class="takeaway">HRW trades the ring's fast lookup for zero token bookkeeping and a free replica ordering. It shines when N is small or you want the full ranked list of owners per key.</div>
+</section>
+
+<section class="slide" id="s21">
+  <div class="slide-num">SLIDE 21 · §7 SUMMARY</div>
+  <h2>The whole argument on one slide</h2>
+<pre>
+modulo hashing      balanced, but ±1 node moves ≈ N/(N+1) of keys   ✗
+        │
+        ▼  put nodes + keys on a ring, own the arc to your token
+consistent hashing  monotone: ±1 node moves only ≈ 1/N             ✓
+        │
+        ├─ virtual nodes   → many tokens/node → even load + heterogeneity
+        ├─ replication     → first R distinct nodes clockwise → availability
+        └─ bounded load    → cap (1+ε)× average → hotspots tamed
+
+rendezvous (HRW)    same monotonicity via a per-node weight race
+</pre>
+  <div class="takeaway">The unifying property is <strong>monotonicity</strong>: when the cluster changes, move only what must move. Every refinement above preserves it while fixing a different rough edge (variance, failure, hot keys).</div>
+</section>
+
+<section class="slide" id="s22">
+  <div class="slide-num">SLIDE 22 · DONE</div>
+  <h2>Recap + where to go next</h2>
+  <h3>One line to remember</h3>
+<pre>
+"Hash nodes and keys onto one ring; own the arc up to your token —
+ so a membership change only moves one arc, not the whole keyspace."
+</pre>
+  <h3>If you build one thing</h3>
+  <p>Implement the ring as a sorted map of <code>token → node</code>, hash each node to ~150 vnodes, and make <code>place(k)</code> a "ceiling" lookup that wraps around. You will have a balanced, monotone partitioner in ~40 lines.</p>
+  <div class="deepdive">
+    <div class="deepdive-title">Want to go deeper</div>
+    <ul>
+      <li><a href="https://web.archive.org/web/20221230083400/https://www.akamai.com/site/en/documents/research-paper/consistent-hashing-and-random-trees-distributed-caching-protocols-for-relieving-hot-spots-on-the-world-wide-web-technical-publication.pdf" target="_blank">Karger et al. (1997): the original consistent hashing paper</a><span class="meta"> · Paper</span> — where the ring + hotspot idea began.</li>
+      <li><a href="https://www.youtube.com/watch?v=UF9Iqmg94tk" target="_blank">Hussein Nasser: Consistent Hashing</a><span class="meta"> · YouTube</span> — a clear video recap of everything above.</li>
+    </ul>
+  </div>
+  <div class="takeaway">You now have the vocabulary (hash, ring, token, vnode, replica, monotonicity) and the one result that matters (O(1/N) remap). Re-read the original article — it should read easily now.</div>
+</section>
+
+  </main>
+</div>
+
+<div class="nav-controls">
+  <button id="prev" title="上一张">◂</button>
+  <div class="progress"><span class="cur">01</span>&nbsp;/&nbsp;<span class="total">00</span></div>
+  <button id="next" title="下一张">▸</button>
+</div>
+
+<script>
+(function() {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var tocLinks = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var cur = document.querySelector('.progress .cur');
+  var total = document.querySelector('.progress .total');
+  total.textContent = String(slides.length).padStart(2, '0');
+
+  function activeIdx() {
+    var y = window.scrollY + 100;
+    for (var i = slides.length - 1; i >= 0; i--) {
+      if (slides[i].offsetTop <= y) return i;
+    }
+    return 0;
+  }
+  function updateTOC() {
+    var i = activeIdx();
+    cur.textContent = String(i + 1).padStart(2, '0');
+    var id = slides[i].id;
+    tocLinks.forEach(function(a) {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+    });
+    var active = document.querySelector('.toc a.active');
+    if (active) {
+      var toc = document.getElementById('toc');
+      var ar = active.getBoundingClientRect();
+      var tr = toc.getBoundingClientRect();
+      if (ar.top < tr.top + 40 || ar.bottom > tr.bottom - 40) {
+        active.scrollIntoView({block: 'center'});
+      }
+    }
+  }
+  function goto(i) {
+    if (i < 0 || i >= slides.length) return;
+    slides[i].scrollIntoView({behavior: 'smooth', block: 'start'});
+  }
+  document.getElementById('prev').onclick = function() { goto(activeIdx() - 1); };
+  document.getElementById('next').onclick = function() { goto(activeIdx() + 1); };
+  document.addEventListener('keydown', function(e) {
+    // 在输入框/文本域/可编辑区（如问答抽屉）里打字时，不要触发翻页
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable ||
+              (t.closest && t.closest('.qa-drawer')))) return;
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); goto(activeIdx() - 1); }
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); goto(activeIdx() + 1); }
+  });
+  window.addEventListener('scroll', updateTOC, {passive: true});
+  updateTOC();
+})();
+</script>
+<script src="qa/qa-widget.js"></script>
+</body>
+</html>

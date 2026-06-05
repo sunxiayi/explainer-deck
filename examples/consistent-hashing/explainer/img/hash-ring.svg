@@ -1,0 +1,42 @@
+<svg viewBox="0 0 820 470" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, Helvetica, Arial, sans-serif">
+  <rect width="820" height="470" fill="#0f0f10"/>
+
+  <!-- ring arcs: each node owns the arc ENDING at its token (clockwise) -->
+  <path d="M 270 80 A 150 150 0 0 1 420 230" fill="none" stroke="#8be3ff" stroke-width="9"/>
+  <path d="M 420 230 A 150 150 0 0 1 270 380" fill="none" stroke="#96dc96" stroke-width="9"/>
+  <path d="M 270 380 A 150 150 0 0 1 120 230" fill="none" stroke="#ff8c5a" stroke-width="9"/>
+  <path d="M 120 230 A 150 150 0 0 1 270 80" fill="none" stroke="#f4d03f" stroke-width="9"/>
+
+  <!-- node tokens -->
+  <circle cx="270" cy="80" r="15" fill="#0f0f10" stroke="#f4d03f" stroke-width="3"/><text x="270" y="86" fill="#f4d03f" font-size="16" font-weight="700" text-anchor="middle">A</text>
+  <circle cx="420" cy="230" r="15" fill="#0f0f10" stroke="#8be3ff" stroke-width="3"/><text x="420" y="236" fill="#8be3ff" font-size="16" font-weight="700" text-anchor="middle">B</text>
+  <circle cx="270" cy="380" r="15" fill="#0f0f10" stroke="#96dc96" stroke-width="3"/><text x="270" y="386" fill="#96dc96" font-size="16" font-weight="700" text-anchor="middle">C</text>
+  <circle cx="120" cy="230" r="15" fill="#0f0f10" stroke="#ff8c5a" stroke-width="3"/><text x="120" y="236" fill="#ff8c5a" font-size="16" font-weight="700" text-anchor="middle">D</text>
+
+  <!-- key k at ~1 o'clock -->
+  <circle cx="345" cy="100" r="8" fill="#fff"/>
+  <text x="358" y="92" fill="#fff" font-size="14">key k = hash(k)</text>
+  <!-- clockwise walk arrow from k to B -->
+  <path d="M 352 108 A 150 150 0 0 1 408 222" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#aw)"/>
+  <text x="392" y="150" fill="#cfcfd2" font-size="13">walk →</text>
+
+  <text x="270" y="232" fill="#9a9a9c" font-size="13" text-anchor="middle">hash ring</text>
+  <text x="270" y="250" fill="#666" font-size="12" text-anchor="middle">(integers mod 2^m)</text>
+
+  <!-- legend -->
+  <text x="600" y="92" fill="#e4e4e6" font-size="15" font-weight="700">Who owns key k?</text>
+  <text x="600" y="120" fill="#bdbdbf" font-size="13.5">1. hash k to a point on the ring</text>
+  <text x="600" y="144" fill="#bdbdbf" font-size="13.5">2. walk clockwise</text>
+  <text x="600" y="168" fill="#bdbdbf" font-size="13.5">3. first node token you hit</text>
+  <text x="618" y="190" fill="#8be3ff" font-size="13.5">→ node B owns k</text>
+
+  <text x="600" y="240" fill="#e4e4e6" font-size="14" font-weight="700">Each color = one node's arc</text>
+  <rect x="600" y="256" width="15" height="13" fill="#8be3ff"/><text x="623" y="267" fill="#bdbdbf" font-size="13">B owns A→B</text>
+  <rect x="600" y="278" width="15" height="13" fill="#96dc96"/><text x="623" y="289" fill="#bdbdbf" font-size="13">C owns B→C</text>
+  <rect x="600" y="300" width="15" height="13" fill="#ff8c5a"/><text x="623" y="311" fill="#bdbdbf" font-size="13">D owns C→D</text>
+  <rect x="600" y="322" width="15" height="13" fill="#f4d03f"/><text x="623" y="333" fill="#bdbdbf" font-size="13">A owns D→A</text>
+
+  <defs><marker id="aw" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#fff"/></marker></defs>
+
+  <text x="40" y="448" fill="#888" font-size="13">A node owns the arc that ENDS at its token. A key belongs to the first node clockwise from it. Schematic (illustrative).</text>
+</svg>

@@ -1,0 +1,43 @@
+Consistent Hashing for Distributed Caches: A Short Treatment
+
+(Original demo article — written for the explainer-deck examples/ folder, CC0 / public domain. Deliberately dense, to show what the skill unpacks.)
+
+Abstract
+
+A distributed cache partitions a keyspace across N nodes. The naive scheme — assign key k to node h(k) mod N — minimizes neither remap cost under membership change nor load skew under non-uniform access. We review consistent hashing, which bounds the expected fraction of keys remapped by a single node addition or removal to O(1/N), and its standard refinements: virtual nodes for variance reduction, replication for availability, and bounded-load assignment for hotspot mitigation. We contrast the ring construction with rendezvous (HRW) hashing and state the monotonicity property that both satisfy.
+
+1. The remapping problem
+
+Let the keyspace be the set of possible keys and let a cluster expose N cache nodes. A placement function maps each key to exactly one node. Under modulo hashing, place(k) = h(k) mod N, where h is a hash function distributing keys approximately uniformly over a large integer range. Modulo hashing balances load well: with a good h, each node owns roughly 1/N of the keys.
+
+The defect appears under membership change. When N becomes N+1, the divisor changes, so place(k) = h(k) mod (N+1) differs from h(k) mod N for almost every key. The fraction of keys whose owner changes approaches (N)/(N+1) — nearly all of them. Every such key is a cache miss that must be refetched and re-warmed. For a cache fronting a database, a near-total remap is a thundering-herd event against the origin. Membership changes are not rare: nodes are added for capacity, removed for failure, and cycled for deploys.
+
+We want a placement function that is balanced (each node owns ~1/N of keys) and monotone: adding or removing a node remaps only the keys that must move to or from that node, and leaves all other keys in place.
+
+2. The ring construction
+
+Map both nodes and keys into the same circular hash space — the integers mod 2^m, visualized as a ring. Hash each node identifier to a position (its token) on the ring. To place a key, hash it to a position and walk clockwise until the first node token is met; that node owns the key. Equivalently, each node owns the arc of the ring ending at its token, i.e. the keys between its clockwise-previous neighbor's token and its own.
+
+Monotonicity follows directly. Adding a node inserts one token; it captures only the arc between itself and its clockwise-previous neighbor, stealing those keys from its clockwise-next neighbor and disturbing no one else. Removing a node deletes its token; its arc merges into its clockwise-next neighbor, and again no other key moves. The expected fraction remapped by a single change is the expected arc length, O(1/N).
+
+3. Virtual nodes
+
+A single token per node yields high variance in arc length: with N random tokens on the ring, the largest arc is Θ((log N)/N) in expectation, so some node can own several times the mean. Load is balanced in expectation but not in realization.
+
+The fix is virtual nodes (vnodes): hash each physical node to V distinct tokens, e.g. by hashing node-id concatenated with a replica index 0..V-1. The ring now has N*V tokens; each physical node owns the union of its V arcs. Averaging V independent arcs reduces the coefficient of variation by a factor of sqrt(V), so V on the order of 100-200 brings per-node load within a few percent of the mean. Vnodes also make heterogeneous capacity expressible: a node twice as large is given twice as many tokens.
+
+4. Replication and availability
+
+Caching the value on one node makes that node a single point of failure for its arc. Replication factor R places each key on the R distinct physical nodes encountered by continuing the clockwise walk past the first owner, skipping tokens that belong to a physical node already chosen. The first is the primary; the rest are replicas. A read may fall back to a replica when the primary is unreachable; a membership change still moves only O(1/N) of the keyspace per affected replica position. The walk-and-skip rule guarantees the R owners are distinct physical nodes, not R tokens of the same node.
+
+5. The hotspot problem and bounded loads
+
+Consistent hashing balances keys, not requests. If access frequency is skewed — a few hot keys absorbing a large share of traffic — the nodes owning those keys are overloaded regardless of how evenly keys are distributed. Two mitigations compose. First, replicate hot keys across more nodes and let clients pick a replica at random, spreading read load. Second, bounded-load assignment: cap each node at (1 + epsilon) times the average load, and when the clockwise walk reaches a node already at its cap, continue to the next. This preserves monotonicity in expectation while guaranteeing no node exceeds the cap, at the cost of slightly more movement on insertion.
+
+6. Rendezvous hashing
+
+The ring is not the only monotone scheme. Rendezvous hashing (Highest Random Weight, HRW) places key k on the node maximizing a combining hash w(k, node) over all nodes. Adding a node can only win keys for which its weight is now the maximum, and removing a node only re-races its own keys; both remap O(1/N). HRW needs no token bookkeeping and gives low variance without vnodes, but evaluates N hashes per lookup versus the ring's O(log N) search, so it is preferred when N is small or when per-key replica ranking (the full sorted order of weights) is wanted for free.
+
+7. Summary
+
+Modulo hashing balances load but remaps nearly the whole keyspace on any membership change. Consistent hashing — the ring with clockwise ownership — makes placement monotone, bounding remap to O(1/N). Virtual nodes cut load variance and express heterogeneity; replication with walk-and-skip adds availability; bounded-load assignment caps hotspots. Rendezvous hashing achieves the same monotonicity by a per-node weight race, trading lookup cost for simpler state. The unifying property is monotonicity: when the cluster changes, move only what must move.
