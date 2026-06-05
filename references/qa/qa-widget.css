@@ -1,0 +1,99 @@
+/* 陪读问答交互层样式 — 配合深色主题 + 黄色高亮 */
+.qa-banner{
+  position:relative; z-index:9998;
+  background:linear-gradient(90deg,rgba(244,208,63,.16),rgba(244,208,63,.06));
+  color:#f4d03f; border:1px solid rgba(244,208,63,.4);
+  font-size:13px; text-align:center; padding:8px 16px; line-height:1.5;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+}
+.qa-banner strong{ color:#ffe066; }
+.qa-banner-off{
+  background:rgba(255,140,90,.1); color:#ff8c5a; border-color:rgba(255,140,90,.4);
+}
+.qa-banner-bottom{ margin-top:40px; }
+.qa-bubble{
+  position:absolute; z-index:9999;
+  width:36px; height:36px; border-radius:50%;
+  background:#f4d03f; color:#000; border:none;
+  font-size:14px; font-weight:700; cursor:pointer;
+  box-shadow:0 4px 14px rgba(0,0,0,.5);
+}
+.qa-bubble:hover{ transform:scale(1.08); }
+
+.qa-marker{
+  display:inline-block; margin-left:8px;
+  color:#8be3ff; font-weight:700; cursor:pointer;
+  font-size:16px; line-height:1; vertical-align:middle;
+  border:1px solid rgba(139,227,255,.4); border-radius:50%;
+  width:18px; height:18px; text-align:center;
+}
+.qa-marker:hover{ background:rgba(139,227,255,.18); }
+
+.qa-drawer{
+  position:fixed; top:0; right:0; height:100vh; width:380px;
+  background:#0c0c0e; border-left:1px solid #2a2a2c;
+  box-shadow:-8px 0 30px rgba(0,0,0,.5);
+  transform:translateX(100%); transition:transform .22s ease;
+  z-index:10000; display:flex; flex-direction:column;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+}
+.qa-drawer.open{ transform:translateX(0); }
+.qa-drawer-head{
+  display:flex; align-items:center; gap:8px;
+  padding:14px 16px; border-bottom:1px solid #222;
+}
+.qa-drawer-title{ color:#f4d03f; font-weight:700; font-size:15px; }
+.qa-conn{ font-size:11px; margin-left:auto; }
+.qa-conn.on{ color:#96dc96; } .qa-conn.off{ color:#ff8c5a; }
+.qa-x{ background:none; border:none; color:#888; font-size:22px; cursor:pointer; line-height:1; padding:0 4px; }
+.qa-x:hover{ color:#fff; }
+
+.qa-anchor{
+  padding:10px 16px; font-size:13px; color:#c8c8cc;
+  background:rgba(139,227,255,.06); border-bottom:1px solid #1c1c1e;
+  line-height:1.5;
+}
+.qa-anchor-label{ color:#8be3ff; font-weight:700; font-size:11px; margin-right:6px; }
+.qa-anchor-slide{ color:#666; font-size:11px; }
+
+.qa-msgs{ flex:1; overflow-y:auto; padding:14px 16px; }
+.qa-empty{ color:#777; font-size:13px; line-height:1.6; }
+.qa-msg{ margin-bottom:16px; }
+.qa-role{ font-size:11px; font-weight:700; letter-spacing:.5px; margin-bottom:4px; }
+.qa-user .qa-role{ color:#f4d03f; }
+.qa-assistant .qa-role{ color:#96dc96; }
+.qa-text{ font-size:14px; line-height:1.65; color:#e4e4e6; }
+.qa-user .qa-text{
+  background:rgba(244,208,63,.08); border-left:2px solid #f4d03f;
+  padding:8px 12px; border-radius:0 4px 4px 0;
+}
+.qa-assistant .qa-text{
+  background:rgba(150,220,150,.05); border-left:2px solid #96dc96;
+  padding:8px 12px; border-radius:0 4px 4px 0;
+}
+.qa-text code{ background:#1a1a1c; color:#f4d03f; padding:1px 5px; border-radius:3px; font-size:12.5px; }
+.qa-text strong{ color:#f4d03f; }
+.qa-waiting .qa-text{ color:#999; font-style:italic; background:none; border-left-color:#444; }
+
+.qa-compose{ border-top:1px solid #222; padding:10px 12px; }
+.qa-compose textarea{
+  width:100%; background:#161618; color:#e4e4e6;
+  border:1px solid #2a2a2c; border-radius:6px;
+  padding:8px 10px; font-size:13px; resize:vertical; box-sizing:border-box;
+  font-family:inherit;
+}
+.qa-compose textarea:focus{ outline:none; border-color:#f4d03f; }
+.qa-compose-row{ display:flex; gap:8px; margin-top:8px; align-items:center; }
+.qa-send{
+  flex:1; background:#f4d03f; color:#000;
+  border:none; border-radius:6px; padding:9px; font-weight:700;
+  font-size:14px; cursor:pointer;
+}
+.qa-send:hover{ background:#ffe066; }
+.qa-del{
+  background:none; color:#ff8c5a; border:1px solid rgba(255,140,90,.4);
+  border-radius:6px; padding:9px 12px; font-size:12.5px; cursor:pointer; white-space:nowrap;
+}
+.qa-del:hover{ background:rgba(255,140,90,.12); }
+
+@media (max-width:768px){ .qa-drawer{ width:100%; } }

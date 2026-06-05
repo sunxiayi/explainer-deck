@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.DS_Store
+# Q&A runtime artifacts (created in a deck's output dir, never in the skill)
+qa-port.txt
+qa-inbox.jsonl
+qa-answers.json
